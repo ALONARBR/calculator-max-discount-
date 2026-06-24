@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор допустимой скидки, защиты РРЦ и комиссии менеджера</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #1e293b;
+            --accent-color: #0ea5e9;
+            --calc-bg: #e0f2fe;
+            --calc-text: #0369a1;
+            --input-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --ok-bg: #dcfce7;
+            --ok-text: #166534;
+            --warn-bg: #fef9c3;
+            --warn-text: #854d0e;
+            --risk-bg: #fee2e2;
+            --risk-text: #991b1b;
+            --badge-manual-bg: #e2e8f0;
+            --badge-manual-text: #475569;
+            --badge-base-bg: #f3e8ff;
+            --badge-base-text: #7e22ce;
+            --badge-calc-bg: #cffafe;
+            --badge-calc-text: #0891b2;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: var(--text-color);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .btn-clear {
+            background-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-calc {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background-color: #f1f5f9;
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-body {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .badge-manual { background: var(--badge-manual-bg); color: var(--badge-manual-text); }
+        .badge-base { background: var(--badge-base-bg); color: var(--badge-base-text); }
+        .badge-calc { background: var(--badge-calc-bg); color: var(--badge-calc-text); }
+
+        input, select, textarea {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: var(--font-family);
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        input[readonly] {
+            background-color: var(--calc-bg);
+            color: var(--calc-text);
+            border-color: #bae6fd;
+            font-weight: 600;
+        }
+
+        input[readonly].is-negative {
+            color: var(--risk-text);
+        }
+
+        .manual-col {
+            background-color: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .manual-col ul {
+            padding-left: 20px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .status-card {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .status-ok { background: var(--ok-bg); color: var(--ok-text); border: 1px solid #bbf7d0; }
+        .status-warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid #fef08a; }
+        .status-risk { background: var(--risk-bg); color: var(--risk-text); border: 1px solid #fecaca; }
+
+        .risk-reasons {
+            margin-top: 12px;
+            font-size: 0.95rem;
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .risk-reasons li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 6px;
+        }
+
+        .risk-reasons li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: inherit;
+        }
+
+        .commission-text {
+            grid-column: 1 / -1;
+            margin-top: 10px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>Калькулятор допустимой скидки и защиты РРЦ</h1>
+            <p>оценка коммерческого предложения и расчет комиссии менеджера</p>
+        </div>
+        <div class="actions">
+            <button class="btn-clear" onclick="clearCalculation()">Очистить расчёт</button>
+            <button class="btn-calc" onclick="calculateAll()">Рассчитать вручную</button>
+        </div>
+    </header>
+
+    <div id="finalStatusCard" class="status-card status-ok" style="display: none;">
+        <div id="finalStatusTitle">сделка допустима. Введённая скидка не нарушает РРЦ и сохраняет минимальную маржу производителя.</div>
+        <ul id="riskReasonsList" class="risk-reasons"></ul>
+    </div>
+
+    <!-- Блок 1 -->
+    <div class="card">
+        <div class="card-header">1. Данные товара</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group">
+                    <label>Название SKU <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="skuName" placeholder="Введите название товара">
+                </div>
+                <div class="field-group">
+                    <label>РРЦ с НДС, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="rrpGross" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Ставка НДС, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="vatRate" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Оптовая цена без скидки, без НДС, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="baseWholesalePriceNet" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Переменная себестоимость ед., без НДС, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="variableCostNet" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Мин. маржинальный доход, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="minContributionPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>РРЦ без НДС, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="rrpNet" readonly>
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>РРЦ вводится с НДС - это целевая цена на полке для конечного покупателя.</li>
+                    <li>оптовая цена канала вводится без НДС - это база для расчёта скидки.</li>
+                    <li>себестоимость и минимальный маржинальный доход нужны для проверки экономики производителя.</li>
+                    <li>РРЦ без НДС считается автоматически и не редактируется.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 2 -->
+    <div class="card">
+        <div class="card-header">2. Канал продаж и логика цены покупателя</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group" style="grid-column: 1 / -1;">
+                    <label>Название канала продаж <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="channelName" placeholder="Федеральная сеть, дистрибьютор...">
+                </div>
+                <div class="field-group">
+                    <label>Метод ценообразования покупателя <span class="badge badge-base">из базы</span></label>
+                    <select id="buyerPricingMethod">
+                        <option value="" disabled selected>выберите метод</option>
+                        <option value="markup">наценка на закупку</option>
+                        <option value="margin">маржа от розницы</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>Наценка покупателя, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="buyerMarkupPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Маржа покупателя, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="buyerMarginPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Допустимое отклонение от РРЦ вниз, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="allowedRrpDeviationPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group" style="grid-column: 1 / -1;">
+                    <label>Комментарий по каналу <span class="badge badge-manual">ручной ввод</span></label>
+                    <textarea id="channelComment" placeholder="дополнительные условия..."></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Мин. допустимая полка с НДС, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="minShelfGrossAllowed" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Мин. допустимая полка без НДС, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="minShelfNetAllowed" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Минимальная цена для защиты РРЦ, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="minPriceByRrp" readonly>
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>метод покупателя показывает, как сеть строит свою полочную цену.</li>
+                    <li>если сеть работает от наценки, она прибавляет % к закупочной цене.</li>
+                    <li>если сеть работает от маржи, закупочная цена является частью розничной цены.</li>
+                    <li>минимальная цена для защиты РРЦ считается автоматически и не редактируется.</li>
+                    <li>чем выше маржа/наценка покупателя, тем выше должна быть отпускная цена производителя для защиты РРЦ.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 3 -->
+    <div class="card">
+        <div class="card-header">3. Условия сделки</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group">
+                    <label>Плановый объём закупки, шт. <span class="badge badge-manual">ручной ввод</span></label>
+                    <input type="text" id="volumeQty" data-type="qty" placeholder="0 шт.">
+                </div>
+                <div class="field-group">
+                    <label>Скидка менеджера, % <span class="badge badge-manual">ручной ввод</span></label>
+                    <input type="text" id="discountPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Ретро-бонус, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="retroPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Маркетинговый бонус, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="marketingPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Промо-компенсация, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="promoPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Логистика на единицу, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="logisticsPerUnit" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Листинг общий, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="listingTotal" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Отсрочка платежа на единицу, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="paymentDelayCostPerUnit" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Возвраты / списания на единицу, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="returnsCostPerUnit" data-type="money" placeholder="0,00 ₽">
+                </div>
+                <div class="field-group">
+                    <label>Прочие расходы на единицу, ₽ <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="otherCostPerUnit" data-type="money" placeholder="0,00 ₽">
+                </div>
+                
+                <!-- Расчетные поля -->
+                <div class="field-group">
+                    <label>Цена после скидки, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="discountedPriceNet" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Скидка в рублях на ед., ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="discountRubPerUnit" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Скидка в рублях на сделку, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="discountRubTotal" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Листинг на единицу, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="listingPerUnit" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Сумма процентных удержаний, % <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="percentDeductionsTotal" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Процентные удержания на ед., ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="percentDeductionsRubPerUnit" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Фиксированные расходы на ед., ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="fixedCostsPerUnit" readonly>
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>скидка менеджера влияет на отпускную цену и может повлиять на полочную цену покупателя.</li>
+                    <li>ретро, маркетинг и промо считаются как процентные удержания от цены после скидки.</li>
+                    <li>листинг делится на объём сделки и превращается в расход на единицу.</li>
+                    <li>все расчётные поля в этом блоке не редактируются.</li>
+                    <li>если объём маленький, листинг на единицу может резко ухудшить экономику сделки.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 4 -->
+    <div class="card">
+        <div class="card-header">4. Прогноз полки и проверка РРЦ</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group">
+                    <label>Расчётная полка без НДС, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="projectedShelfNet" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Расчётная полка с НДС, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="projectedShelfGross" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Отклонение от РРЦ, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="rrpDeviationRub" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Отклонение от РРЦ, % <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="rrpDeviationPercent" readonly>
+                </div>
+                <div class="field-group" style="grid-column: 1 / -1;">
+                    <label>Статус защиты РРЦ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="rrpStatus" readonly>
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>этот блок показывает, какую полку может получить покупатель при введённой скидке.</li>
+                    <li>если расчётная полка ниже РРЦ, возникает риск демпинга или нарушения ценовой политики.</li>
+                    <li>допустимое отклонение вниз задаётся отдельно в блоке канала.</li>
+                    <li>все значения блока являются расчётными и не редактируются.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 5 -->
+    <div class="card">
+        <div class="card-header">5. Экономика производителя / net-net</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group">
+                    <label>Net-net цена, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="netNetPrice" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Маржинальный доход, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="contributionRub" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Маржинальность, % <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="contributionPercent" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Минимальная цена по марже, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="minPriceByProducerMargin" readonly>
+                </div>
+                <div class="field-group" style="grid-column: 1 / -1;">
+                    <label>Статус маржи <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="marginStatus" readonly>
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>net-net цена показывает, сколько реально остаётся производителю после условий канала.</li>
+                    <li>маржинальный доход сравнивается с минимально допустимым уровнем.</li>
+                    <li>если маржинальный доход ниже минимума, скидка экономически опасна даже при нормальной полке.</li>
+                    <li>минимальная цена по марже считается автоматически и не редактируется.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 6 -->
+    <div class="card">
+        <div class="card-header">6. Финальная допустимая цена и максимальная скидка</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group">
+                    <label>Финальная мин. допустимая цена, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="finalMinAllowedPrice" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Макс. допустимая скидка, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="maxAllowedDiscountRub" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Макс. допустимая скидка, % <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="maxAllowedDiscountPercent" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Превышение введённой скидки, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="actualDiscountExcessRub" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Превышение введённой скидки, % <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="actualDiscountExcessPercent" readonly>
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>финальная минимальная цена выбирается как большее значение из двух ограничителей (РРЦ и маржа).</li>
+                    <li>если ограничитель РРЦ выше - проблема в полочной цене покупателя.</li>
+                    <li>если ограничитель маржи выше - проблема в экономике производителя.</li>
+                    <li>максимальная скидка показывает предел, ниже которого менеджеру нельзя опускаться без согласования.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок 7 -->
+    <div class="card">
+        <div class="card-header">7. Комиссия менеджера</div>
+        <div class="card-body">
+            <div class="fields-grid">
+                <div class="field-group" style="grid-column: 1 / -1;">
+                    <label>Комиссия менеджера, % <span class="badge badge-base">из базы</span></label>
+                    <input type="text" id="managerCommissionPercent" data-type="percent" placeholder="0,00 %">
+                </div>
+                <div class="field-group">
+                    <label>Комиссия на ед. без скидки, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionWithoutDiscountPerUnit" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Комиссия на ед. со скидкой, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionWithDiscountPerUnit" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Потеря комиссии на ед., ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionLossPerUnit" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Комиссия без скидки на весь объём, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionWithoutDiscountTotal" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Комиссия со скидкой на весь объём, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionWithDiscountTotal" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Менеджер уступил своих денег, ₽ <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionLossTotal" readonly>
+                </div>
+                <div class="field-group">
+                    <label>Потеря комиссии, % <span class="badge badge-calc">расчёт</span></label>
+                    <input type="text" id="commissionLossPercent" readonly>
+                </div>
+                <div class="commission-text" id="commissionSummaryText">
+                    при скидке 0,00 % менеджер снижает свою комиссию на 0,00 ₽ по этой сделке.
+                </div>
+            </div>
+            <div class="manual-col">
+                <strong>Мануал:</strong>
+                <ul>
+                    <li>комиссия без скидки считается от базовой оптовой цены канала.</li>
+                    <li>комиссия со скидкой считается от фактической цены после скидки.</li>
+                    <li>разница показывает, сколько менеджер уступает из своей комиссии.</li>
+                    <li>этот блок нужен, чтобы менеджер видел личную цену скидки.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Utils для форматирования
+    function parseNumber(str) {
+        if (!str) return 0;
+        if (typeof str === 'number') return str;
+        // удаляем все кроме цифр, запятой, точки, минуса
+        let clean = str.toString().replace(/[^\d,\.-]/g, '');
+        // заменяем запятую на точку
+        clean = clean.replace(',', '.');
+        let val = parseFloat(clean);
+        return isNaN(val) ? 0 : val;
+    }
+
+    function formatMoney(num) {
+        if (num === null || isNaN(num) || !isFinite(num)) return '—';
+        const isNegative = num < 0;
+        const absNum = Math.abs(num);
+        let formatted = absNum.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        if (isNegative) {
+            return `(${formatted} ₽)`;
+        }
+        return `${formatted} ₽`;
+    }
+
+    function formatPercent(num) {
+        if (num === null || isNaN(num) || !isFinite(num)) return '—';
+        const isNegative = num < 0;
+        const absNum = Math.abs(num);
+        let formatted = absNum.toFixed(2).replace('.', ',');
+        return isNegative ? `-${formatted} %` : `${formatted} %`;
+    }
+
+    function formatQuantity(num) {
+        if (num === null || isNaN(num) || !isFinite(num)) return '—';
+        return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' шт.';
+    }
+
+    // Слушатели событий ввода
+    document.querySelectorAll('input:not([readonly])').forEach(input => {
+        // Форматирование при потере фокуса
+        input.addEventListener('blur', (e) => {
+            const val = parseNumber(e.target.value);
+            const type = e.target.getAttribute('data-type');
+            
+            if (e.target.value.trim() === '') return;
+            
+            if (type === 'money') {
+                e.target.value = formatMoney(val).replace('(', '-').replace(')', ''); 
+            } else if (type === 'percent') {
+                e.target.value = formatPercent(val);
+            } else if (type === 'qty') {
+                e.target.value = formatQuantity(val);
+            }
+            calculateAll();
+        });
+
+        // Очистка при фокусе для удобного редактирования
+        input.addEventListener('focus', (e) => {
+            const val = parseNumber(e.target.value);
+            if (val !== 0 || e.target.value !== '') {
+                // Возвращаем просто число с точкой (или запятой) для редактирования
+                e.target.value = val === 0 ? '' : val.toString().replace('.', ',');
+            }
+        });
+
+        input.addEventListener('input', calculateAll);
+    });
+
+    document.querySelectorAll('select, textarea').forEach(el => {
+        el.addEventListener('change', calculateAll);
+        el.addEventListener('input', calculateAll);
+    });
+
+    // Функция для безопасного вывода в readonly инпуты
+    function setCalcField(id, val, formatter) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = formatter(val);
+        
+        // Подсветка отрицательных денег (бухгалтерский стиль)
+        if (typeof val === 'number' && val < 0 && formatter === formatMoney) {
+            el.classList.add('is-negative');
+        } else {
+            el.classList.remove('is-negative');
+        }
+    }
+
+    // Главная расчетная функция
+    function calculateAll() {
+        // 1. Сбор исходных данных
+        const rrpGross = Math.max(0, parseNumber(document.getElementById('rrpGross').value));
+        const vatRate = Math.max(0, parseNumber(document.getElementById('vatRate').value));
+        const baseWholesalePriceNet = Math.max(0, parseNumber(document.getElementById('baseWholesalePriceNet').value));
+        const variableCostNet = Math.max(0, parseNumber(document.getElementById('variableCostNet').value));
+        const minContributionPercent = Math.min(99.99, Math.max(0, parseNumber(document.getElementById('minContributionPercent').value)));
+
+        const buyerPricingMethod = document.getElementById('buyerPricingMethod').value;
+        const buyerMarkupPercent = Math.max(0, parseNumber(document.getElementById('buyerMarkupPercent').value));
+        const buyerMarginPercent = Math.max(0, Math.min(99.99, parseNumber(document.getElementById('buyerMarginPercent').value)));
+        const allowedRrpDeviationPercent = Math.max(0, parseNumber(document.getElementById('allowedRrpDeviationPercent').value));
+
+        const volumeQty = Math.max(1, parseNumber(document.getElementById('volumeQty').value) || 1); // Защита от деления на 0
+        const discountPercent = Math.min(100, Math.max(0, parseNumber(document.getElementById('discountPercent').value)));
+        
+        const retroPercent = Math.max(0, parseNumber(document.getElementById('retroPercent').value));
+        const marketingPercent = Math.max(0, parseNumber(document.getElementById('marketingPercent').value));
+        const promoPercent = Math.max(0, parseNumber(document.getElementById('promoPercent').value));
+        const logisticsPerUnit = Math.max(0, parseNumber(document.getElementById('logisticsPerUnit').value));
+        const listingTotal = Math.max(0, parseNumber(document.getElementById('listingTotal').value));
+        const paymentDelayCostPerUnit = Math.max(0, parseNumber(document.getElementById('paymentDelayCostPerUnit').value));
+        const returnsCostPerUnit = Math.max(0, parseNumber(document.getElementById('returnsCostPerUnit').value));
+        const otherCostPerUnit = Math.max(0, parseNumber(document.getElementById('otherCostPerUnit').value));
+        
+        const managerCommissionPercent = Math.min(100, Math.max(0, parseNumber(document.getElementById('managerCommissionPercent').value)));
+
+        const vatMultiplier = 1 + (vatRate / 100);
+
+        // Блок 1
+        const rrpNet = rrpGross / vatMultiplier;
+        setCalcField('rrpNet', rrpNet, formatMoney);
+
+        // Блок 2
+        const minShelfGrossAllowed = rrpGross * (1 - allowedRrpDeviationPercent / 100);
+        const minShelfNetAllowed = minShelfGrossAllowed / vatMultiplier;
+        
+        let minPriceByRrp = 0;
+        if (buyerPricingMethod === 'markup') {
+            minPriceByRrp = minShelfNetAllowed / (1 + buyerMarkupPercent / 100);
+        } else if (buyerPricingMethod === 'margin') {
+            minPriceByRrp = minShelfNetAllowed * (1 - buyerMarginPercent / 100);
+        }
+        
+        setCalcField('minShelfGrossAllowed', minShelfGrossAllowed, formatMoney);
+        setCalcField('minShelfNetAllowed', minShelfNetAllowed, formatMoney);
+        setCalcField('minPriceByRrp', minPriceByRrp, formatMoney);
+
+        // Блок 3
+        const discountedPriceNet = baseWholesalePriceNet * (1 - discountPercent / 100);
+        const discountRubPerUnit = baseWholesalePriceNet - discountedPriceNet;
+        const discountRubTotal = discountRubPerUnit * volumeQty;
+        const listingPerUnit = listingTotal / volumeQty;
+        const percentDeductionsTotal = Math.min(99.99, retroPercent + marketingPercent + promoPercent);
+        const percentDeductionsRubPerUnit = discountedPriceNet * (percentDeductionsTotal / 100);
+        const fixedCostsPerUnit = logisticsPerUnit + listingPerUnit + paymentDelayCostPerUnit + returnsCostPerUnit + otherCostPerUnit;
+
+        setCalcField('discountedPriceNet', discountedPriceNet, formatMoney);
+        setCalcField('discountRubPerUnit', discountRubPerUnit, formatMoney);
+        setCalcField('discountRubTotal', discountRubTotal, formatMoney);
+        setCalcField('listingPerUnit', listingPerUnit, formatMoney);
+        setCalcField('percentDeductionsTotal', percentDeductionsTotal, formatPercent);
+        setCalcField('percentDeductionsRubPerUnit', percentDeductionsRubPerUnit, formatMoney);
+        setCalcField('fixedCostsPerUnit', fixedCostsPerUnit, formatMoney);
+
+        // Блок 4
+        let projectedShelfNet = 0;
+        if (buyerPricingMethod === 'markup') {
+            projectedShelfNet = discountedPriceNet * (1 + buyerMarkupPercent / 100);
+        } else if (buyerPricingMethod === 'margin') {
+            projectedShelfNet = discountedPriceNet / (1 - buyerMarginPercent / 100);
+        }
+
+        const projectedShelfGross = projectedShelfNet * vatMultiplier;
+        const rrpDeviationRub = projectedShelfGross - rrpGross;
+        const rrpDeviationPercent = rrpGross > 0 ? (rrpDeviationRub / rrpGross * 100) : 0;
+
+        setCalcField('projectedShelfNet', projectedShelfNet, formatMoney);
+        setCalcField('projectedShelfGross', projectedShelfGross, formatMoney);
+        setCalcField('rrpDeviationRub', rrpDeviationRub, formatMoney);
+        setCalcField('rrpDeviationPercent', rrpDeviationPercent, formatPercent);
+
+        let rrpStatusText = 'не определен';
+        let isRrpOk = false;
+        let isRrpWarn = false;
+        
+        // Округление до 2 знаков для сравнения во избежание проблем с плавающей точкой
+        const projGrossRounded = Math.round(projectedShelfGross * 100) / 100;
+        const rrpGrossRounded = Math.round(rrpGross * 100) / 100;
+        const minShelfGrossRounded = Math.round(minShelfGrossAllowed * 100) / 100;
+
+        if (projGrossRounded >= rrpGrossRounded) {
+            rrpStatusText = 'OK';
+            isRrpOk = true;
+        } else if (projGrossRounded >= minShelfGrossRounded) {
+            rrpStatusText = 'внимание';
+            isRrpWarn = true;
+        } else {
+            rrpStatusText = 'риск демпинга';
+        }
+        document.getElementById('rrpStatus').value = rrpStatusText;
+
+        // Блок 5
+        const netNetPrice = discountedPriceNet * (1 - percentDeductionsTotal / 100) - fixedCostsPerUnit;
+        const contributionRub = netNetPrice - variableCostNet;
+        const contributionPercent = netNetPrice > 0 ? (contributionRub / netNetPrice * 100) : 0;
+        
+        const targetNetNetPrice = variableCostNet / (1 - minContributionPercent / 100);
+        const minPriceByProducerMargin = (targetNetNetPrice + fixedCostsPerUnit) / (1 - percentDeductionsTotal / 100);
+
+        setCalcField('netNetPrice', netNetPrice, formatMoney);
+        setCalcField('contributionRub', contributionRub, formatMoney);
+        setCalcField('contributionPercent', contributionPercent, formatPercent);
+        setCalcField('minPriceByProducerMargin', minPriceByProducerMargin, formatMoney);
+
+        let marginStatusText = 'не определен';
+        let isMarginOk = false;
+        const contribPctRounded = Math.round(contributionPercent * 100) / 100;
+        const minContribPctRounded = Math.round(minContributionPercent * 100) / 100;
+
+        if (contribPctRounded >= minContribPctRounded) {
+            marginStatusText = 'OK';
+            isMarginOk = true;
+        } else {
+            marginStatusText = 'риск маржи';
+        }
+        document.getElementById('marginStatus').value = marginStatusText;
+
+        // Блок 6
+        const finalMinAllowedPrice = Math.max(minPriceByRrp, minPriceByProducerMargin);
+        let maxAllowedDiscountRub = baseWholesalePriceNet - finalMinAllowedPrice;
+        let maxAllowedDiscountPercent = baseWholesalePriceNet > 0 ? (maxAllowedDiscountRub / baseWholesalePriceNet * 100) : 0;
+
+        if (maxAllowedDiscountRub < 0) {
+            maxAllowedDiscountRub = 0;
+            maxAllowedDiscountPercent = 0;
+        }
+
+        const actualDiscountExcessRub = Math.max(0, finalMinAllowedPrice - discountedPriceNet);
+        const actualDiscountExcessPercent = baseWholesalePriceNet > 0 ? (actualDiscountExcessRub / baseWholesalePriceNet * 100) : 0;
+
+        setCalcField('finalMinAllowedPrice', finalMinAllowedPrice, formatMoney);
+        setCalcField('maxAllowedDiscountRub', maxAllowedDiscountRub, formatMoney);
+        setCalcField('maxAllowedDiscountPercent', maxAllowedDiscountPercent, formatPercent);
+        setCalcField('actualDiscountExcessRub', actualDiscountExcessRub, formatMoney);
+        setCalcField('actualDiscountExcessPercent', actualDiscountExcessPercent, formatPercent);
+
+        // Блок 7
+        const commissionWithoutDiscountPerUnit = baseWholesalePriceNet * (managerCommissionPercent / 100);
+        const commissionWithDiscountPerUnit = discountedPriceNet * (managerCommissionPercent / 100);
+        const commissionLossPerUnit = commissionWithoutDiscountPerUnit - commissionWithDiscountPerUnit;
+        const commissionWithoutDiscountTotal = commissionWithoutDiscountPerUnit * volumeQty;
+        const commissionWithDiscountTotal = commissionWithDiscountPerUnit * volumeQty;
+        const commissionLossTotal = commissionWithoutDiscountTotal - commissionWithDiscountTotal;
+        const commissionLossPercent = commissionWithoutDiscountTotal > 0 ? (commissionLossTotal / commissionWithoutDiscountTotal * 100) : 0;
+
+        setCalcField('commissionWithoutDiscountPerUnit', commissionWithoutDiscountPerUnit, formatMoney);
+        setCalcField('commissionWithDiscountPerUnit', commissionWithDiscountPerUnit, formatMoney);
+        setCalcField('commissionLossPerUnit', commissionLossPerUnit, formatMoney);
+        setCalcField('commissionWithoutDiscountTotal', commissionWithoutDiscountTotal, formatMoney);
+        setCalcField('commissionWithDiscountTotal', commissionWithDiscountTotal, formatMoney);
+        setCalcField('commissionLossTotal', commissionLossTotal, formatMoney);
+        setCalcField('commissionLossPercent', commissionLossPercent, formatPercent);
+
+        document.getElementById('commissionSummaryText').innerText = 
+            `при скидке ${formatPercent(discountPercent)} менеджер снижает свою комиссию на ${formatMoney(commissionLossTotal)} по этой сделке.`;
+
+        // Итоговый статус (Блок 8)
+        updateFinalStatus(
+            discountedPriceNet, finalMinAllowedPrice,
+            projGrossRounded, rrpGrossRounded, minShelfGrossRounded,
+            contribPctRounded, minContribPctRounded,
+            rrpDeviationRub, rrpDeviationPercent, actualDiscountExcessRub, actualDiscountExcessPercent
+        );
+
+        saveToLocalStorage();
+    }
+
+    function updateFinalStatus(price, finalMinPrice, shelfGross, rrpGross, minShelf, contribPct, minContribPct, rrpDevRub, rrpDevPct, excRub, excPct) {
+        const card = document.getElementById('finalStatusCard');
+        const title = document.getElementById('finalStatusTitle');
+        const list = document.getElementById('riskReasonsList');
+        
+        card.style.display = 'block';
+        list.innerHTML = '';
+        card.className = 'status-card'; // reset
+
+        const priceRounded = Math.round(price * 100) / 100;
+        const finalMinRounded = Math.round(finalMinPrice * 100) / 100;
+
+        const isPriceOk = priceRounded >= finalMinRounded;
+        const isRrpOk = shelfGross >= rrpGross;
+        const isRrpWarn = !isRrpOk && (shelfGross >= minShelf);
+        const isMarginOk = contribPct >= minContribPct;
+
+        let risks = [];
+
+        if (shelfGross < minShelf) {
+            risks.push(`полочная цена ниже минимально допустимой (с учетом отклонения) на ${formatMoney(Math.abs(shelfGross - minShelf))}.`);
+        } else if (!isRrpOk) {
+            risks.push(`полочная цена ниже РРЦ на ${formatMoney(Math.abs(rrpDevRub))} (${formatPercent(Math.abs(rrpDevPct))}).`);
+        }
+
+        if (!isMarginOk) {
+            risks.push(`маржинальность ниже минимума на ${formatPercent(Math.abs(minContribPct - contribPct))}.`);
+        }
+
+        if (excRub > 0) {
+            risks.push(`введённая скидка превышает максимально допустимую на ${formatMoney(excRub)} (${formatPercent(excPct)}).`);
+        }
+
+        if (isPriceOk && isRrpOk && isMarginOk) {
+            card.classList.add('status-ok');
+            title.innerText = 'сделка допустима. Введённая скидка не нарушает РРЦ и сохраняет минимальную маржу производителя.';
+        } else if (isPriceOk && isMarginOk && isRrpWarn) {
+            card.classList.add('status-warn');
+            title.innerText = 'сделка требует проверки. Скидка близка к предельному уровню или полка находится в зоне допустимого отклонения от РРЦ.';
+            risks.forEach(r => {
+                const li = document.createElement('li');
+                li.innerText = r;
+                list.appendChild(li);
+            });
+        } else {
+            card.classList.add('status-risk');
+            title.innerText = 'сделка ниже допустимого уровня. Требуется согласование руководителя / коммерческого директора.';
+            risks.forEach(r => {
+                const li = document.createElement('li');
+                li.innerText = r;
+                list.appendChild(li);
+            });
+        }
+    }
+
+    // Local Storage logic
+    function saveToLocalStorage() {
+        const inputs = document.querySelectorAll('input:not([readonly]), select, textarea');
+        const data = {};
+        inputs.forEach(el => {
+            data[el.id] = el.value;
+        });
+        localStorage.setItem('pricingCalcData', JSON.stringify(data));
+    }
+
+    function loadFromLocalStorage() {
+        const data = JSON.parse(localStorage.getItem('pricingCalcData'));
+        if (!data) return;
+        
+        const inputs = document.querySelectorAll('input:not([readonly]), select, textarea');
+        inputs.forEach(el => {
+            if (data[el.id] !== undefined) {
+                el.value = data[el.id];
+            }
+        });
+        calculateAll();
+    }
+
+    function clearCalculation() {
+        const inputs = document.querySelectorAll('input:not([readonly]), select, textarea');
+        inputs.forEach(el => {
+            el.value = '';
+            if (el.tagName === 'SELECT') {
+                el.selectedIndex = 0;
+            }
+        });
+        document.getElementById('finalStatusCard').style.display = 'none';
+        
+        const readOnlyFields = document.querySelectorAll('input[readonly]');
+        readOnlyFields.forEach(el => {
+            el.value = '';
+            el.classList.remove('is-negative');
+        });
+        
+        localStorage.removeItem('pricingCalcData');
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+        loadFromLocalStorage();
+    });
+
+</script>
+</body>
+</html>
